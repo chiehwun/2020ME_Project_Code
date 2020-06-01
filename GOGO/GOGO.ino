@@ -2,19 +2,31 @@
 #include <Servo.h>
 PS2X ps2x; // create PS2 Controller Class
 /* PS2 Configuration
- * PSB_L1               armZ+
- * PSB_L2               armZ-
- * PSB_R1               arm2bsktA
- * PSB_R2               arm2bsktB
- * PSB_PAD_UP           armY+
+ * PSB_L1               armZ+           
+ * PSB_L2               armZ-   
+ * PSB_R1               arm2bskt1       
+ * PSB_R2               arm2bskt2
+ * PSB_PAD_UP           armY+           
  * PSB_PAD_DOWN         armY-
  * PSB_PAD_LEFT         armX+
  * PSB_PAD_RIGHT        armX-
- * PSB_RED              grp+  // 夾緊
+ * PSB_RED              grp+  // 夾緊   
  * PSB_BLUE             grp-  // 放鬆
+ * PSB_PINK             bskt_push
+ * PSB_GREEN            bskt_pull
  * Analog(PSS_LY)       LDCM_move
  * Analog(PSS_RY)       RDCM_move
  */
+ /* Pin Layout
+  * LDCM  2
+  * RDCM  3
+  * ARM1  4
+  * ARM2  5
+  * ARM3  6
+  * GRP   7
+  * BSKT1 8 
+  * BSKT2 9
+  */
 // PS2 pin layout
 #define PCLK  51
 #define PSEL  50  // pin CS
@@ -26,8 +38,10 @@ PS2X ps2x; // create PS2 Controller Class
 byte vibrate = 0;
 int lspd = 0, rspd = 0, mvspd = 255;
 Servo sv[12]; // Servo pin 4-12
-int svdeg[12] = {0,0,0,0,180,0,0,0,0,0,0,0};
-int dd10 = 0;
+int svdeg[12] = {0,0,0,0,0,0,90,5,0,0,0,0};
+int svdeg_MIN[12] = {0,0,0,0,0,0,0,5,0,0,0,0};
+int svdeg_MAX[12] = {180,180,180,180,180,180,180,180,180,180,180,180};
+int dd10[12] = {0,0,0,0,0,0,0,0,0,0,0,0};;
 byte dcm[][3] = {{2, 22, 23},{3, 24, 25}}; // {EN IN1 IN2}
 unsigned nxt = 0;
 
@@ -62,10 +76,15 @@ inline void PS2_set() {
 void keep() {
   DCM_set(0, lspd);
   DCM_set(1, rspd);
-  svdeg[4] += dd10;
-  svdeg[4] = constrain(svdeg[4], 0, 180);
-  for(int i = 4; i <= 4; i++)
+  for(int i = 6; i <= 7; i++) {
+    svdeg[i] += dd10[i];
+    svdeg[i] = constrain(svdeg[i], 0, 180);
     sv[i].write(svdeg[i]);
+    Serial.print("svdeg[");
+    Serial.print(i);
+    Serial.print("] = ");
+    Serial.println(svdeg[i]);
+  }
 }
 
 void setup(){
@@ -82,10 +101,10 @@ void setup(){
     for(int j = 0; j < 3; j++)
       pinMode(dcm[i][j], OUTPUT);
 
-  for(int i = 4; i <= 4; i++) {
+  for(int i = 6; i <= 7; i++) {
     sv[i].attach(i);
-    svdeg[4] = constrain(svdeg[4], 0, 180);
-//    sv[i].write(svdeg[i]);
+    svdeg[i] = constrain(svdeg[i], svdeg_MIN[i], svdeg_MAX[i]);
+    sv[i].write(svdeg[i]);
   }
 }
 
@@ -93,10 +112,10 @@ void loop() {
   ps2x.read_gamepad(false, vibrate);
   lspd = map(ps2x.Analog(PSS_LY),0,255,mvspd,-mvspd);
   rspd = map(ps2x.Analog(PSS_RY),0,255,-mvspd,mvspd);
-  Serial.print("L = ");
-  Serial.print(lspd);
-  Serial.print(", R = ");
-  Serial.println(rspd);
+//  Serial.print("L = ");
+//  Serial.print(lspd);
+//  Serial.print(", R = ");
+//  Serial.println(rspd);
   if(ps2x.BP(PSB_L1)){
     Serial.println("PSB_L1");
   }
@@ -109,21 +128,24 @@ void loop() {
   if(ps2x.BR(PSB_L2)){
     Serial.print("PSB_L2 = BR");
   }
-
-  if(ps2x.BP(PSB_R1)){
-    Serial.print("PSB_R1 = BP");
-    dd10 = 5;
-  }
-  if(ps2x.BR(PSB_R1)) dd10 = 0;
-  if(ps2x.BP(PSB_R2)) dd10 = -5;
-  if(ps2x.BR(PSB_R2)) dd10 = 0;
+  //arm3
+  if(ps2x.BP(PSB_START)) dd10[6] = 1;
+  if(ps2x.BR(PSB_START)) dd10[6] = 0;
+  if(ps2x.BP(PSB_SELECT)) dd10[6] = -1;
+  if(ps2x.BR(PSB_SELECT)) dd10[6] = 0;
+  //gripper
+  if(ps2x.BP(PSB_RED)) dd10[7] = 1;
+  if(ps2x.BR(PSB_RED)) dd10[7] = 0;
+  if(ps2x.BP(PSB_BLUE)) dd10[7] = -1;
+  if(ps2x.BR(PSB_BLUE)) dd10[7] = 0;
+  
   //if(ps2x.BP(PSB_R1)) sv[4].write(0);
   keep();
   delay(10);
 }
 
 
-void 2(byte motor, int val) {
+void DCM_set(byte motor, int val) {
   if(val > 255 || val < -255) return;
   digitalWrite(dcm[motor][1], val > 0 );  // Direction set
   digitalWrite(dcm[motor][2], val < 0 );  // Direction set
