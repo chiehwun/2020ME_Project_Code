@@ -2,13 +2,12 @@
 Main Program: GOGO.ino
 
 BUGS:
-1. 執行完ps2x.BP(PSB_R1)後，ps2x.BP(PSB_R2)會被自動呼叫
-2. 5V 並聯後手爪會顫抖
 
 TODO:
-1. DEBUG
-2. XY Scara Arm control Code
-3. 前進後退用單顆<ps2x.Analog(PSS_RY)>
+1. PSB_L3, PSB_R3 調整移動速度
+2. 測試scara()，若效果不好
+  (1) 降速
+  (2) 放棄
 
 Including:
 1. PS2          control

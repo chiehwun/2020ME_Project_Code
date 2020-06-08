@@ -17,18 +17,7 @@ PS2X ps2x; // create PS2 Controller Class
  * Analog(PSS_LY)       LDCM_move
  * Analog(PSS_RY)       RDCM_move
  */
- /* Pin Layout
-  * LDCM  2
-  * RDCM  3
-  * ZDCM  4
-  * ARM1  5
-  * ARM2  6
-  * ARM3  7
-  * GRP   8
-  * BSKT1 9
-  * BSKT2 10
-  * TESTS 11
-  */
+
 // DC pin
 #define PLDCM   2
 #define PRDCM   3
@@ -49,7 +38,8 @@ PS2X ps2x; // create PS2 Controller Class
 
 #define BP    ButtonPressed
 #define BR    ButtonReleased
-unsigned nxt = 0;
+unsigned long nxt = 0;
+byte vibrate = 0;
 byte dcm[][3] = {{PLDCM, 50, 51},{PRDCM, 52, 53},{PZDCM, 49, 48}}; // {EN IN1 IN2}
 
 inline void PS2_set() {
@@ -81,15 +71,25 @@ inline void PS2_set() {
 }
 
 void warn() {
-  digitalWrite(13, HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);
   delay(50);
-  digitalWrite(13, LOW);
+  digitalWrite(LED_BUILTIN, LOW);
   delay(50);
+}
+
+void wait(int ms) {
+  nxt = millis() + ms;
+  while(millis() < nxt)
+    ps2x.read_gamepad(false, vibrate);
 }
 
 void DCM_set(byte motor, int val) {
   if(val > 255 || val < -255) return;
   digitalWrite(dcm[motor][1], val >   0 );  // Direction set
   digitalWrite(dcm[motor][2], val <=  0 );  // Direction set
-  analogWrite (dcm[motor][0], abs(val));  // Speed set
+  analogWrite (dcm[motor][0], abs(val));    // Speed set
+}
+
+double rad2deg(double rad) {
+  return rad*180*M_1_PI;
 }

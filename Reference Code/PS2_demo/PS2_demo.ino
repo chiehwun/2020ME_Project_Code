@@ -1,9 +1,9 @@
 #include <PS2X_lib.h>  //for v1.6
 PS2X ps2x; // create PS2 Controller Class
-#define PDAT 4
-#define PCMD 3
-#define PSEL 2
-#define PCLK 5
+#define PDAT 24
+#define PCMD 25
+#define PSEL 22
+#define PCLK 23
 #define BP     ButtonPressed
 #define BR     ButtonReleased
 byte vibrate = 0;
