@@ -1,12 +1,12 @@
-#include "GOGO.h"
+#include "GOGO_XY.h"
 #include "math.h"
 #define DEBUG
 // Scara Parameters
 const double L1 = 26.0, L2 = 32.66;
-const double offset1 = 55.0, offset2 = 80.0;
+const double offset1 = 78.0, offset2 = 155.0;
 double th1 = 0.0, th2 = 0.0;
-const double X_MAX = 29.0, X_MIN = 0.0, Y_MAX = 55.0, Y_MIN = 10.0;
-double X = 20.58, Y = -10.87, dx = 0.0, dy = 0.0;
+const double X_MAX = 50.0, X_MIN = -50.0, Y_MAX = 55.0, Y_MIN = -20.0;
+double X = 15.77, Y = 10.12, dx = 0.0, dy = 0.0;
 double E = 0.0, Q = 0.0, S = 0.0;
 
 // Basket Parameters
@@ -90,30 +90,30 @@ void loop() {
   if(ps2x.BR(PSB_BLUE))       dd10[PGRP] = 0.0;
 
   // SCARA XY conrol
-//  if(ps2x.BP(PSB_PAD_LEFT))   dx = -1;
-//  if(ps2x.BR(PSB_PAD_LEFT))   dx = 0;
-//  if(ps2x.BP(PSB_PAD_RIGHT))  dx = 1;
-//  if(ps2x.BR(PSB_PAD_RIGHT))  dx = 0;
-//  if(ps2x.BP(PSB_PAD_UP))     dy = 1;
-//  if(ps2x.BR(PSB_PAD_UP))     dy = 0;
-//  if(ps2x.BP(PSB_PAD_DOWN))   dy = -1;
-//  if(ps2x.BR(PSB_PAD_DOWN))   dy = 0;
+  if(ps2x.BP(PSB_PAD_LEFT))   dx = -0.3;
+  if(ps2x.BR(PSB_PAD_LEFT))   dx = 0.0;
+  if(ps2x.BP(PSB_PAD_RIGHT))  dx = 0.3;
+  if(ps2x.BR(PSB_PAD_RIGHT))  dx = 0.0;
+  if(ps2x.BP(PSB_PAD_UP))     dy = 0.3;
+  if(ps2x.BR(PSB_PAD_UP))     dy = 0.0;
+  if(ps2x.BP(PSB_PAD_DOWN))   dy = -0.3;
+  if(ps2x.BR(PSB_PAD_DOWN))   dy = 0.0;
+
+  // Test ARM1 ARM2
+//  if(ps2x.BP(PSB_PAD_UP))     dd10[PARM1] = 0.1;
+//  if(ps2x.BR(PSB_PAD_UP))     dd10[PARM1] = 0.0;
+//  if(ps2x.BP(PSB_PAD_DOWN))   dd10[PARM1] = -0.1;
+//  if(ps2x.BR(PSB_PAD_DOWN))   dd10[PARM1] = 0.0;
+//  if(ps2x.BP(PSB_PAD_LEFT))   dd10[PARM2] = -0.4;
+//  if(ps2x.BR(PSB_PAD_LEFT))   dd10[PARM2] = 0.0;
+//  if(ps2x.BP(PSB_PAD_RIGHT))  dd10[PARM2] = 0.4;
+//  if(ps2x.BR(PSB_PAD_RIGHT))  dd10[PARM2] = 0.0;
 
   // ARM3
   if(ps2x.BP(PSB_START))      dd10[PARM3] = 1.0;
   if(ps2x.BR(PSB_START))      dd10[PARM3] = 0.0;
   if(ps2x.BP(PSB_SELECT))     dd10[PARM3] = -1.0;
   if(ps2x.BR(PSB_SELECT))     dd10[PARM3] = 0.0;
-
-  // Test ARM1 ARM2
-  if(ps2x.BP(PSB_PAD_UP))     dd10[PARM1] = 0.1;
-  if(ps2x.BR(PSB_PAD_UP))     dd10[PARM1] = 0.0;
-  if(ps2x.BP(PSB_PAD_DOWN))   dd10[PARM1] = -0.1;
-  if(ps2x.BR(PSB_PAD_DOWN))   dd10[PARM1] = 0.0;
-  if(ps2x.BP(PSB_PAD_LEFT))   dd10[PARM2] = -0.4;
-  if(ps2x.BR(PSB_PAD_LEFT))   dd10[PARM2] = 0.0;
-  if(ps2x.BP(PSB_PAD_RIGHT))  dd10[PARM2] = 0.4;
-  if(ps2x.BR(PSB_PAD_RIGHT))  dd10[PARM2] = 0.0;
 
   // Test Pin
   if(ps2x.BP(PSB_PINK))       dd10[PTESTS] = 1.0;
@@ -141,7 +141,10 @@ void keep() {
   }
   // SVM ACT
   for(int i = PARM1; i <= PTESTS; i++) {
-    svdeg[i] = constrain(svdeg[i] + dd10[i], svdeg_MIN[i], svdeg_MAX[i]);
+    if(i == PARM1 || i == PARM2)
+      svdeg[i] = constrain(svdeg[i], svdeg_MIN[i], svdeg_MAX[i]);
+    else
+      svdeg[i] = constrain(svdeg[i] + dd10[i], svdeg_MIN[i], svdeg_MAX[i]);
     sv[i].write(int(svdeg[i]));
     if(dd10[i] != 0) {
       Serial.print("serv[");
@@ -181,7 +184,7 @@ void scara() {
   Y = constrain(Y+dy, Y_MIN, Y_MAX);
   e = acos((pow(X, 2) + pow(Y, 2) - pow(L1, 2) - pow(L2, 2))/2/L1/L2);
   q = acos((pow(X, 2) + pow(Y, 2) + pow(L1, 2) - pow(L2, 2))/2/L1/sqrt(pow(X,2) + pow(Y,2)));
-  s = atan(Y/X) - Q;
+  s = atan2(Y,X) - Q;
   if(isnan(e) || isnan(q) || isnan(s)){
     Serial.println("NAN");
     return;
@@ -198,15 +201,22 @@ void scara() {
     Serial.println("th1 > th2 !!");
     return;
   }
+//  if((s + 2*q) > 183 || (s + 2*q) < offset1) {
+//    Serial.println("th1 OutOfRange!!");
+//    return;
+//  }
+  
   E = e;
   Q = q;
   S = s;
   th1 = S + 2*Q;
   th2 = th1 - E;
+  svdeg[PARM1] = rad2deg(th1) - offset1;
+  svdeg[PARM2] = rad2deg(th2)+offset2-rad2deg(th1);
   Serial.print("X: ");     Serial.print(X);
   Serial.print(", Y:");    Serial.print(Y);
-  Serial.print(", m1: ");  Serial.print(rad2deg(th1) - offset1);
-  Serial.print(", m2: ");  Serial.print(rad2deg(th2)+offset2-rad2deg(th1)+offset1);
+  Serial.print(", m1: ");  Serial.print(svdeg[PARM1]);
+  Serial.print(", m2: ");  Serial.print(svdeg[PARM2]);
   Serial.print(", E: ");   Serial.print(rad2deg(E));
   Serial.print(", S: ");   Serial.print(rad2deg(S));
   Serial.print(", Q: ");   Serial.println(rad2deg(Q));
