@@ -27,9 +27,9 @@ PS2X ps2x; // create PS2 Controller Class
 #define PBSKT2  6
 #define PARM1   7
 #define PARM2   8
-#define PARM3   9
+#define PARM3   11
 #define PGRP    10
-#define PTESTS  11
+#define PTESTS  12
 // PS2 pin layout
 #define PCLK    23
 #define PSEL    22  // pin CS
@@ -40,7 +40,7 @@ PS2X ps2x; // create PS2 Controller Class
 #define BR    ButtonReleased
 unsigned long nxt = 0;
 byte vibrate = 0;
-byte dcm[][3] = {{PLDCM, 50, 51},{PRDCM, 52, 53},{PZDCM, 49, 48}}; // {EN IN1 IN2}
+byte dcm[][3] = {{PLDCM, 50, 51},{PRDCM, 52, 53},{PZDCM, 48, 49}}; // {EN IN1 IN2}
 
 inline void PS2_set() {
   // GamePad(clock, command, attention, data, Pressures?, Rumble?) check for error
@@ -91,5 +91,17 @@ void DCM_set(byte motor, int val) {
 }
 
 double rad2deg(double rad) {
-  return rad*180*M_1_PI;
+  return rad*180.0*M_1_PI;
+}
+
+double deg2rad(double deg) {
+  return deg/180.0*M_PI;
+}
+
+int sign(double value) {
+ return int((value>0.0)-(value<0.0));
+}
+
+bool outRange(double Test, double Min, double Max) {
+  return Test < Min || Test > Max;
 }

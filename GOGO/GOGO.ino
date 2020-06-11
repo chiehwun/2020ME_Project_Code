@@ -3,14 +3,14 @@
 #define DEBUG
 // Scara Parameters
 const double L1 = 26.0, L2 = 32.66;
-const double offset1 = 55.0, offset2 = 80.0;
+const double offset1 = 78.0, offset2 = 155.0;
 double th1 = 0.0, th2 = 0.0;
 const double X_MAX = 29.0, X_MIN = 0.0, Y_MAX = 55.0, Y_MIN = 10.0;
 double X = 20.58, Y = -10.87, dx = 0.0, dy = 0.0;
 double E = 0.0, Q = 0.0, S = 0.0;
 
 // Basket Parameters
-const int bktdeg = 30, bkt1 = 150, bkt2 = 50;
+const int bktdeg = 45, bkt1 = 180, bkt2 = 40;
 
 // Moving Speed Parameters
 const int HIGHSPD = 255, LOWSPD = 225;
@@ -125,8 +125,8 @@ void loop() {
 }
 
 void keep() {
-  if(dx != 0 || dy != 0)
-    scara();
+//  if(dx != 0 || dy != 0)
+//    scara();
   // DCM ACT
   DCM_set(0, lspd);
   DCM_set(1, rspd);
@@ -143,12 +143,12 @@ void keep() {
   for(int i = PARM1; i <= PTESTS; i++) {
     svdeg[i] = constrain(svdeg[i] + dd10[i], svdeg_MIN[i], svdeg_MAX[i]);
     sv[i].write(int(svdeg[i]));
-    if(dd10[i] != 0) {
-      Serial.print("serv[");
-      Serial.print(i);
-      Serial.print("]: ");
-      Serial.println(svdeg[i]);
-    }
+//    if(dd10[i] != 0) {
+//      Serial.print("serv[");
+//      Serial.print(i);
+//      Serial.print("]: ");
+//      Serial.println(svdeg[i]);
+//    }
   }
 //  Serial.print("ARM1: ");
 //  Serial.print(svdeg[PARM1]);

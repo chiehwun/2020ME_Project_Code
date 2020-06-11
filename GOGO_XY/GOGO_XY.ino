@@ -3,25 +3,87 @@
 #define DEBUG
 // Scara Parameters
 const double L1 = 26.0, L2 = 32.66;
-const double offset1 = 78.0, offset2 = 155.0;
-double th1 = 0.0, th2 = 0.0;
+const double offset1 = 63.0, offset2 = 150.0;
+double TH1 = 0.0, TH2 = 0.0;
 const double X_MAX = 50.0, X_MIN = -50.0, Y_MAX = 55.0, Y_MIN = -20.0;
-double X = 15.77, Y = 10.12, dx = 0.0, dy = 0.0;
-double E = 0.0, Q = 0.0, S = 0.0;
-
+double X = 17.5, Y = 17.3, dx = 0.0, dy = 0.0;
+double E = acos((pow(X, 2) + pow(Y, 2) - pow(L1, 2) - pow(L2, 2))/2/L1/L2),
+       Q = acos((pow(X, 2) + pow(Y, 2) + pow(L1, 2) - pow(L2, 2))/2/L1/sqrt(pow(X,2) + pow(Y,2))),
+       S = atan2(Y,X) - Q;
+double scara_speed = 1.2;
 // Basket Parameters
-const int bktdeg = 30, bkt1 = 150, bkt2 = 50;
+// B1: ARM3 = 50, ARM1 = 114, ARM2 = 18
+// B2: ARM3 = 14, ARM1 = 91, ARM2 = 13
+const int bktdeg = 45, bkt1 = 180, bkt2 = 40;
+const int BSK_ARM[2][3] = {{114,18,50},{91,13,14}};
 
 // Moving Speed Parameters
 const int HIGHSPD = 255, LOWSPD = 225;
 int lspd = 0, rspd = 0, zspd = 0, mvspd = HIGHSPD;
 
 // Servo Parameters
-Servo sv[12]; // Servo pin 4-12
-double svdeg[12]        = {-1.0,  -1.0,   0.0,    0.0,    0.0,    bkt1,    bkt2,      47.0,   10.0,   88.0,   5.0,    0.0};
-const int svdeg_MIN[12] = {0.0,   0.0,    0.0,    0.0,    0.0,    0.0,      0.0,      0.0,    0.0,    0.0,    5.0,    0.0};
-const int svdeg_MAX[12] = {180.0, 180.0,  180.0,  180.0,  180.0,  bktdeg,   bktdeg,   95.0,   180.0,  180.0,  180.0,  180.0};
-double dd10[12]         = {0.0};
+Servo sv[13]; // Servo pin 4-12
+double svdeg[13]        = {-1.0,  -1.0,   0.0,    0.0,    0.0,    bkt1,     bkt2,     62.0,   18.0,   0.0,    5.0,    88.0,   0.0};
+const int svdeg_MIN[13] = {0.0,   0.0,    0.0,    0.0,    0.0,    0.0,      0.0,      0.0,    0.0,    0.0,    5.0,    0.0,    0.0};
+const int svdeg_MAX[13] = {180.0, 180.0,  180.0,  180.0,  180.0,  bktdeg,   bktdeg,   117.0,   150.0,  180.0,  80.0,  180.0,  180.0};
+double dd10[13]         = {0.0};
+const int pulse_min[13] = {544,   544,    544,    544,    544,    544,      544,      570,    470,    544,    544,    544,    544};
+const int pulse_max[13] = {2400,  2400,   2400,   2400,   2400,   2400,     2400,     1950,   2500,   2400,   2400,   2400,   2400};
+
+void Theta2XY(){
+    TH1 = deg2rad(svdeg[PARM1] + offset1);
+    TH2 = TH1 + deg2rad(svdeg[PARM2] - offset2);
+    X = L1 * cos(TH1) + L2 * cos(TH2);
+    Y = L1 * sin(TH1) + L2 * sin(TH2);
+}
+
+void BSK(int n){
+  all_stop();
+  while(1){
+    ps2x.read_gamepad(false, vibrate);
+    if((n == 0 && ps2x.BP(PSB_GREEN)) || (n == 1 && ps2x.BP(PSB_PINK))){
+      break;
+    }
+    double di = -sign(svdeg[PARM1] - BSK_ARM[n][0])*scara_speed;
+    double dj = -sign(svdeg[PARM2] - BSK_ARM[n][1])*scara_speed;
+    double dk = -sign(svdeg[PARM3] - BSK_ARM[n][2])*scara_speed;
+    bool ok = true;
+    if(abs((int)svdeg[PARM1] - BSK_ARM[n][0]) <= 5) {
+      svdeg[PARM1] = BSK_ARM[n][0];
+    }
+    else{
+      svdeg[PARM1] = constrain(svdeg[PARM1] + di, svdeg_MIN[PARM1], svdeg_MAX[PARM1]);
+      sv[PARM1].write(svdeg[PARM1]);
+      Serial.print("F1/");
+      ok = false;
+    }
+    if(abs((int)svdeg[PARM2] - BSK_ARM[n][1]) <= 5) {
+      svdeg[PARM2] = BSK_ARM[n][1];
+    }
+    else{
+      svdeg[PARM2] = constrain(svdeg[PARM2] + dj, svdeg_MIN[PARM2], svdeg_MAX[PARM2]);
+      sv[PARM2].write(svdeg[PARM2]);
+      ok = false;
+      Serial.print("F2/");
+    }
+    if(abs((int)svdeg[PARM3] - BSK_ARM[n][2]) <= 5) {
+        svdeg[PARM3] = BSK_ARM[n][2];
+    }
+    else {
+      svdeg[PARM3] = constrain(svdeg[PARM3] + dk, svdeg_MIN[PARM3], svdeg_MAX[PARM3]);
+      sv[PARM3].write(svdeg[PARM3]);
+      ok = false;
+      Serial.print("F3/ ");
+    }
+    if(ok){
+      break;
+    }
+    Serial.print("m1: ");       Serial.print(svdeg[PARM1]);
+    Serial.print(", m2: ");     Serial.print(svdeg[PARM2]);
+    Serial.print(", m3: ");     Serial.println(svdeg[PARM3]);
+  }
+  Theta2XY();
+}
 
 void setup() {
   // warn Light on
@@ -40,13 +102,14 @@ void setup() {
       pinMode(dcm[i][j], OUTPUT);
   // Servo motor init
   for(int i = PBSKT1; i <= PTESTS; ++i) {
-    sv[i].attach(i);
+    sv[i].attach(i, pulse_min[i], pulse_max[i]);
     sv[i].write(svdeg[i]);
   }
   wait(2000);
   sv[PBSKT1].detach();
   sv[PBSKT2].detach();
   wait(500);
+  Theta2XY();
 }
 
 void loop() {
@@ -90,23 +153,25 @@ void loop() {
   if(ps2x.BR(PSB_BLUE))       dd10[PGRP] = 0.0;
 
   // SCARA XY conrol
-  if(ps2x.BP(PSB_PAD_LEFT))   dx = -0.3;
+  if(ps2x.BP(PSB_PAD_LEFT))   dx = -0.5;
   if(ps2x.BR(PSB_PAD_LEFT))   dx = 0.0;
-  if(ps2x.BP(PSB_PAD_RIGHT))  dx = 0.3;
+  if(ps2x.BP(PSB_PAD_RIGHT))  dx = 0.5;
   if(ps2x.BR(PSB_PAD_RIGHT))  dx = 0.0;
-  if(ps2x.BP(PSB_PAD_UP))     dy = 0.3;
+  if(ps2x.BP(PSB_PAD_UP))     dy = 0.5;
   if(ps2x.BR(PSB_PAD_UP))     dy = 0.0;
-  if(ps2x.BP(PSB_PAD_DOWN))   dy = -0.3;
+  if(ps2x.BP(PSB_PAD_DOWN))   dy = -0.5;
   if(ps2x.BR(PSB_PAD_DOWN))   dy = 0.0;
+  if(ps2x.BP(PSB_GREEN))      BSK(0);
+  if(ps2x.BP(PSB_PINK))       BSK(1);
 
   // Test ARM1 ARM2
-//  if(ps2x.BP(PSB_PAD_UP))     dd10[PARM1] = 0.1;
+//  if(ps2x.BP(PSB_PAD_UP))     dd10[PARM1] = 0.5;
 //  if(ps2x.BR(PSB_PAD_UP))     dd10[PARM1] = 0.0;
-//  if(ps2x.BP(PSB_PAD_DOWN))   dd10[PARM1] = -0.1;
+//  if(ps2x.BP(PSB_PAD_DOWN))   dd10[PARM1] = -0.5;
 //  if(ps2x.BR(PSB_PAD_DOWN))   dd10[PARM1] = 0.0;
-//  if(ps2x.BP(PSB_PAD_LEFT))   dd10[PARM2] = -0.4;
+//  if(ps2x.BP(PSB_PAD_LEFT))   dd10[PARM2] = -0.5;
 //  if(ps2x.BR(PSB_PAD_LEFT))   dd10[PARM2] = 0.0;
-//  if(ps2x.BP(PSB_PAD_RIGHT))  dd10[PARM2] = 0.4;
+//  if(ps2x.BP(PSB_PAD_RIGHT))  dd10[PARM2] = 0.5;
 //  if(ps2x.BR(PSB_PAD_RIGHT))  dd10[PARM2] = 0.0;
 
   // ARM3
@@ -116,10 +181,12 @@ void loop() {
   if(ps2x.BR(PSB_SELECT))     dd10[PARM3] = 0.0;
 
   // Test Pin
+/*
   if(ps2x.BP(PSB_PINK))       dd10[PTESTS] = 1.0;
   if(ps2x.BR(PSB_PINK))       dd10[PTESTS] = 0.0;
   if(ps2x.BP(PSB_GREEN))      dd10[PTESTS] = -1.0;
   if(ps2x.BR(PSB_GREEN))      dd10[PTESTS] = 0.0;
+*/
   keep();
   delay(10);
 }
@@ -143,6 +210,7 @@ void keep() {
   for(int i = PARM1; i <= PTESTS; i++) {
     if(i == PARM1 || i == PARM2)
       svdeg[i] = constrain(svdeg[i], svdeg_MIN[i], svdeg_MAX[i]);
+//      svdeg[i] = constr1ain(svdeg[i] + dd10[i], svdeg_MIN[i], svdeg_MAX[i]);
     else
       svdeg[i] = constrain(svdeg[i] + dd10[i], svdeg_MIN[i], svdeg_MAX[i]);
     sv[i].write(int(svdeg[i]));
@@ -153,12 +221,6 @@ void keep() {
       Serial.println(svdeg[i]);
     }
   }
-//  Serial.print("ARM1: ");
-//  Serial.print(svdeg[PARM1]);
-//  Serial.print(", ARM2: ");
-//  Serial.print(svdeg[PARM1]);
-//  Serial.print(", TEST:");
-//  Serial.println(svdeg[PTESTS]);
 }
 
 void basket_mv(int port) {
@@ -173,44 +235,53 @@ void basket_mv(int port) {
 }
 
 void all_stop() {
+  lspd = rspd = zspd = 0;
   DCM_set(0, 0);
   DCM_set(1, 0);
   DCM_set(2, 0);
 }
 
 void scara() {
-  double e,q,s;
-  X = constrain(X+dx, X_MIN, X_MAX);
-  Y = constrain(Y+dy, Y_MIN, Y_MAX);
-  e = acos((pow(X, 2) + pow(Y, 2) - pow(L1, 2) - pow(L2, 2))/2/L1/L2);
-  q = acos((pow(X, 2) + pow(Y, 2) + pow(L1, 2) - pow(L2, 2))/2/L1/sqrt(pow(X,2) + pow(Y,2)));
-  s = atan2(Y,X) - Q;
-  if(isnan(e) || isnan(q) || isnan(s)){
+  double e,q,s, x = X+dx, y = Y+dy;
+  if(pow(x,2)+pow(y,2) > (L1+L2)*(L1+L2)) {
+    Serial.println("X,Y Out of Range!!");
+    return;
+  }
+  e = acos((pow(x, 2) + pow(y, 2) - pow(L1, 2) - pow(L2, 2))/2/L1/L2);
+  q = acos((pow(x, 2) + pow(y, 2) + pow(L1, 2) - pow(L2, 2))/2/L1/sqrt(pow(x,2) + pow(y,2)));
+  s = atan2(y,x) - q;
+  double th1 = s + 2*q, th2 = th1 - e;
+  if(isnan(e) || isnan(q) || isnan(s)) {
     Serial.println("NAN");
     return;
   }
-  if(abs(th1 - (s + 2*q)) > 5) {
-    Serial.println("delta_th1 > 5!!");
+  if(fabs(TH1 - th1) > deg2rad(3)) {
+    Serial.println("delta_TH1 > 3 !!");
+    Serial.print("x: ");    Serial.print(x);    Serial.print(", y: ");    Serial.println(y);
+    Serial.print("e: ");    Serial.print(rad2deg(e));    Serial.print(", q: ");    Serial.print(q); Serial.print(", s: ");    Serial.println(s);
+    Serial.print("TH1: ");  Serial.print(TH1);  Serial.print(", th1: "); Serial.println(th1);
     return;
   }
-  if(abs(th2 - (s + 2*q - e)) > 5) {
-    Serial.println("delta_th2 > 5!!");
+  if(fabs(TH2 - th2) > deg2rad(3)) {
+    Serial.println("delta_TH2 > 3 !!");
     return;
   }
   if(e < 0) {
-    Serial.println("th1 > th2 !!");
+    Serial.println("TH1 > TH2 !!");
     return;
   }
-//  if((s + 2*q) > 183 || (s + 2*q) < offset1) {
-//    Serial.println("th1 OutOfRange!!");
-//    return;
-//  }
-  
-  E = e;
-  Q = q;
-  S = s;
-  th1 = S + 2*Q;
-  th2 = th1 - E;
+
+  if(outRange(rad2deg(th1) - offset1, svdeg_MIN[PARM1], svdeg_MAX[PARM1])) {
+    Serial.println("m1 Out of Range !!");
+    return;
+  }
+  if(outRange(rad2deg(th2)+offset2-rad2deg(th1), svdeg_MIN[PARM2], svdeg_MAX[PARM2])) {
+    Serial.println("m2 Out of Range !!");
+    return;
+  }
+  X = constrain(x, X_MIN, X_MAX);
+  Y = constrain(y, Y_MIN, Y_MAX);
+  E = e; Q = q; S = s; TH1 = th1; TH2 = th2;
   svdeg[PARM1] = rad2deg(th1) - offset1;
   svdeg[PARM2] = rad2deg(th2)+offset2-rad2deg(th1);
   Serial.print("X: ");     Serial.print(X);
