@@ -2,16 +2,12 @@
 Main Program: GOGO.ino
 
 ADD:
-1. 利用attach() 校正 M1, M2 角度
-2. Scara直接移動到籃子(可中斷)
-3. 修復保護措施的bug
+1. 當夾爪在籃子上方時，釋放夾爪會讓兩個籃子馬達繃緊，確保東西不會掉落
+2. 修正 BSK() 跳出問題
+3. 刪除角度弧度轉換 function ，以內建常數替代
 
 TODO:
-1. 物件導向化
-  (1) MyServo
-  (2) Scara
-2. Scara.moveXY(double x, double y)
-3. 整理程式
+
 
 How to Calibrate Scara ARM:
 1. Using attch() to initialize min and max pulse width <https://www.arduino.cc/en/Reference/ServoAttach>

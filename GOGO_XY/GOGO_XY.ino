@@ -7,13 +7,13 @@ const double offset1 = 63.0, offset2 = 150.0;
 double TH1 = 0.0, TH2 = 0.0;
 const double X_MAX = 50.0, X_MIN = -50.0, Y_MAX = 55.0, Y_MIN = -20.0;
 double X = 17.5, Y = 17.3, dx = 0.0, dy = 0.0;
-double E = acos((pow(X, 2) + pow(Y, 2) - pow(L1, 2) - pow(L2, 2))/2/L1/L2),
-       Q = acos((pow(X, 2) + pow(Y, 2) + pow(L1, 2) - pow(L2, 2))/2/L1/sqrt(pow(X,2) + pow(Y,2))),
+double E = acos((X*X + Y*Y - L1*L1 - L2*L2)/2/L1/L2),
+       Q = acos((X*X + Y*Y + L1*L1 - L2*L2)/2/L1/sqrt(X*X + Y*Y)),
        S = atan2(Y,X) - Q;
 double scara_speed = 1.2;
 // Basket Parameters
-// B1: ARM3 = 50, ARM1 = 114, ARM2 = 18
-// B2: ARM3 = 14, ARM1 = 91, ARM2 = 13
+// B1: ARM1 = 114, ARM2 = 18, ARM3 = 50
+// B2: ARM1 = 91,  ARM2 = 13, ARM3 = 14
 const int bktdeg = 45, bkt1 = 180, bkt2 = 40;
 const int BSK_ARM[2][3] = {{114,18,50},{91,13,14}};
 
@@ -29,10 +29,19 @@ const int svdeg_MAX[13] = {180.0, 180.0,  180.0,  180.0,  180.0,  bktdeg,   bktd
 double dd10[13]         = {0.0};
 const int pulse_min[13] = {544,   544,    544,    544,    544,    544,      544,      570,    470,    544,    544,    544,    544};
 const int pulse_max[13] = {2400,  2400,   2400,   2400,   2400,   2400,     2400,     1950,   2500,   2400,   2400,   2400,   2400};
+const double SCARA_MAX = 1.0, SCARA_MIN = 0.5;
+double scara_spd = SCARA_MAX;
+const int SCARA_SAVEDEG = 5;
+bool exit_scara = false;
+
+bool atBkt(){
+  return (InBound(svdeg[PARM1], BSK_ARM[0][0], 2) && InBound(svdeg[PARM2], BSK_ARM[0][1], 2)) || 
+         (InBound(svdeg[PARM1], BSK_ARM[1][0], 2) && InBound(svdeg[PARM2], BSK_ARM[1][1], 2));
+}
 
 void Theta2XY(){
-    TH1 = deg2rad(svdeg[PARM1] + offset1);
-    TH2 = TH1 + deg2rad(svdeg[PARM2] - offset2);
+    TH1 = DEG_TO_RAD * (svdeg[PARM1] + offset1);
+    TH2 = TH1 + DEG_TO_RAD * (svdeg[PARM2] - offset2);
     X = L1 * cos(TH1) + L2 * cos(TH2);
     Y = L1 * sin(TH1) + L2 * sin(TH2);
 }
@@ -41,7 +50,8 @@ void BSK(int n){
   all_stop();
   while(1){
     ps2x.read_gamepad(false, vibrate);
-    if((n == 0 && ps2x.BP(PSB_GREEN)) || (n == 1 && ps2x.BP(PSB_PINK))){
+    if(ps2x.BP(PSB_GREEN) || ps2x.BP(PSB_PINK)) {
+      exit_scara = true;
       break;
     }
     double di = -sign(svdeg[PARM1] - BSK_ARM[n][0])*scara_speed;
@@ -51,7 +61,7 @@ void BSK(int n){
     if(abs((int)svdeg[PARM1] - BSK_ARM[n][0]) <= 5) {
       svdeg[PARM1] = BSK_ARM[n][0];
     }
-    else{
+    else {
       svdeg[PARM1] = constrain(svdeg[PARM1] + di, svdeg_MIN[PARM1], svdeg_MAX[PARM1]);
       sv[PARM1].write(svdeg[PARM1]);
       Serial.print("F1/");
@@ -60,7 +70,7 @@ void BSK(int n){
     if(abs((int)svdeg[PARM2] - BSK_ARM[n][1]) <= 5) {
       svdeg[PARM2] = BSK_ARM[n][1];
     }
-    else{
+    else {
       svdeg[PARM2] = constrain(svdeg[PARM2] + dj, svdeg_MIN[PARM2], svdeg_MAX[PARM2]);
       sv[PARM2].write(svdeg[PARM2]);
       ok = false;
@@ -125,6 +135,16 @@ void loop() {
       mvspd = LOWSPD;
     }
 
+  if(ps2x.BP(PSB_R3))
+    if(scara_spd == SCARA_MIN) {
+      Serial.println("SCARA_HIGHSPEED");
+      scara_spd = SCARA_MAX;
+    }
+    else {
+      Serial.println("SCARA_LOWSPEED");
+      scara_spd = SCARA_MIN;
+    }
+
   lspd = map(ps2x.Analog(PSS_LY),0,255,mvspd,-mvspd);
   lspd = abs(lspd) < 100? 0 : lspd;
   rspd = map(ps2x.Analog(PSS_RY),0,255,-mvspd,mvspd);
@@ -147,32 +167,41 @@ void loop() {
     Serial.println("PBSKT2 detached!");
   }
   // GRIPPER
-  if(ps2x.BP(PSB_RED))        dd10[PGRP] = 1.0;
-  if(ps2x.BR(PSB_RED))        dd10[PGRP] = 0.0;
-  if(ps2x.BP(PSB_BLUE))       dd10[PGRP] = -1.0;
-  if(ps2x.BR(PSB_BLUE))       dd10[PGRP] = 0.0;
+  if(ps2x.BP(PSB_RED))      dd10[PGRP] = 2.0;
+  if(ps2x.BR(PSB_RED))      dd10[PGRP] = 0.0;
+  if(ps2x.BP(PSB_BLUE)) {
+    dd10[PGRP] = -1.5;
+    if(atBkt()) {
+      Serial.print("PPP");
+      sv[PBSKT1].attach(PBSKT1);
+      sv[PBSKT1].write(bkt1);
+      sv[PBSKT2].attach(PBSKT2);
+      sv[PBSKT2].write(bkt2);
+    }
+  }
+  if(ps2x.BR(PSB_BLUE)) {
+    dd10[PGRP] = 0.0;
+    if(atBkt()) {
+      Serial.print("RRR");
+      sv[PBSKT1].detach();
+      sv[PBSKT2].detach();
+    }
+  }
 
   // SCARA XY conrol
-  if(ps2x.BP(PSB_PAD_LEFT))   dx = -0.5;
+  if(ps2x.BP(PSB_PAD_LEFT))   dx = -scara_spd;
   if(ps2x.BR(PSB_PAD_LEFT))   dx = 0.0;
-  if(ps2x.BP(PSB_PAD_RIGHT))  dx = 0.5;
+  if(ps2x.BP(PSB_PAD_RIGHT))  dx = scara_spd;
   if(ps2x.BR(PSB_PAD_RIGHT))  dx = 0.0;
-  if(ps2x.BP(PSB_PAD_UP))     dy = 0.5;
+  if(ps2x.BP(PSB_PAD_UP))     dy = scara_spd;
   if(ps2x.BR(PSB_PAD_UP))     dy = 0.0;
-  if(ps2x.BP(PSB_PAD_DOWN))   dy = -0.5;
+  if(ps2x.BP(PSB_PAD_DOWN))   dy = -scara_spd;
   if(ps2x.BR(PSB_PAD_DOWN))   dy = 0.0;
+  exit_scara = false;
   if(ps2x.BP(PSB_GREEN))      BSK(0);
+  if(exit_scara)  return;
   if(ps2x.BP(PSB_PINK))       BSK(1);
-
-  // Test ARM1 ARM2
-//  if(ps2x.BP(PSB_PAD_UP))     dd10[PARM1] = 0.5;
-//  if(ps2x.BR(PSB_PAD_UP))     dd10[PARM1] = 0.0;
-//  if(ps2x.BP(PSB_PAD_DOWN))   dd10[PARM1] = -0.5;
-//  if(ps2x.BR(PSB_PAD_DOWN))   dd10[PARM1] = 0.0;
-//  if(ps2x.BP(PSB_PAD_LEFT))   dd10[PARM2] = -0.5;
-//  if(ps2x.BR(PSB_PAD_LEFT))   dd10[PARM2] = 0.0;
-//  if(ps2x.BP(PSB_PAD_RIGHT))  dd10[PARM2] = 0.5;
-//  if(ps2x.BR(PSB_PAD_RIGHT))  dd10[PARM2] = 0.0;
+  if(exit_scara)  return;
 
   // ARM3
   if(ps2x.BP(PSB_START))      dd10[PARM3] = 1.0;
@@ -180,13 +209,6 @@ void loop() {
   if(ps2x.BP(PSB_SELECT))     dd10[PARM3] = -1.0;
   if(ps2x.BR(PSB_SELECT))     dd10[PARM3] = 0.0;
 
-  // Test Pin
-/*
-  if(ps2x.BP(PSB_PINK))       dd10[PTESTS] = 1.0;
-  if(ps2x.BR(PSB_PINK))       dd10[PTESTS] = 0.0;
-  if(ps2x.BP(PSB_GREEN))      dd10[PTESTS] = -1.0;
-  if(ps2x.BR(PSB_GREEN))      dd10[PTESTS] = 0.0;
-*/
   keep();
   delay(10);
 }
@@ -247,23 +269,23 @@ void scara() {
     Serial.println("X,Y Out of Range!!");
     return;
   }
-  e = acos((pow(x, 2) + pow(y, 2) - pow(L1, 2) - pow(L2, 2))/2/L1/L2);
-  q = acos((pow(x, 2) + pow(y, 2) + pow(L1, 2) - pow(L2, 2))/2/L1/sqrt(pow(x,2) + pow(y,2)));
+  e = acos((x*x + y*y - L1*L1 - L2*L2)/2/L1/L2);
+  q = acos((x*x + y*y + L1*L1 - L2*L2)/2/L1/sqrt(x*x + y*y));
   s = atan2(y,x) - q;
   double th1 = s + 2*q, th2 = th1 - e;
   if(isnan(e) || isnan(q) || isnan(s)) {
     Serial.println("NAN");
     return;
   }
-  if(fabs(TH1 - th1) > deg2rad(3)) {
-    Serial.println("delta_TH1 > 3 !!");
+  if(fabs(TH1 - th1) > DEG_TO_RAD * (SCARA_SAVEDEG)) {
+    Serial.print("delta_TH1 Exceed!! = "); Serial.println(RAD_TO_DEG*(TH1 - th1));
     Serial.print("x: ");    Serial.print(x);    Serial.print(", y: ");    Serial.println(y);
-    Serial.print("e: ");    Serial.print(rad2deg(e));    Serial.print(", q: ");    Serial.print(q); Serial.print(", s: ");    Serial.println(s);
+    Serial.print("e: ");    Serial.print(RAD_TO_DEG * e);    Serial.print(", q: ");    Serial.print(q); Serial.print(", s: ");    Serial.println(s);
     Serial.print("TH1: ");  Serial.print(TH1);  Serial.print(", th1: "); Serial.println(th1);
     return;
   }
-  if(fabs(TH2 - th2) > deg2rad(3)) {
-    Serial.println("delta_TH2 > 3 !!");
+  if(fabs(TH2 - th2) > DEG_TO_RAD * (SCARA_SAVEDEG)) {
+    Serial.println("delta_TH2 Exceed!! = "); Serial.println(RAD_TO_DEG*(TH2 - th2));
     return;
   }
   if(e < 0) {
@@ -271,24 +293,24 @@ void scara() {
     return;
   }
 
-  if(outRange(rad2deg(th1) - offset1, svdeg_MIN[PARM1], svdeg_MAX[PARM1])) {
+  if(outRange(RAD_TO_DEG * th1 - offset1, svdeg_MIN[PARM1], svdeg_MAX[PARM1])) {
     Serial.println("m1 Out of Range !!");
     return;
   }
-  if(outRange(rad2deg(th2)+offset2-rad2deg(th1), svdeg_MIN[PARM2], svdeg_MAX[PARM2])) {
+  if(outRange(RAD_TO_DEG * th2 + offset2 - RAD_TO_DEG * th1, svdeg_MIN[PARM2], svdeg_MAX[PARM2])) {
     Serial.println("m2 Out of Range !!");
     return;
   }
   X = constrain(x, X_MIN, X_MAX);
   Y = constrain(y, Y_MIN, Y_MAX);
   E = e; Q = q; S = s; TH1 = th1; TH2 = th2;
-  svdeg[PARM1] = rad2deg(th1) - offset1;
-  svdeg[PARM2] = rad2deg(th2)+offset2-rad2deg(th1);
+  svdeg[PARM1] = RAD_TO_DEG * th1 - offset1;
+  svdeg[PARM2] = RAD_TO_DEG * th2 + offset2 - RAD_TO_DEG * th1;
   Serial.print("X: ");     Serial.print(X);
   Serial.print(", Y:");    Serial.print(Y);
   Serial.print(", m1: ");  Serial.print(svdeg[PARM1]);
   Serial.print(", m2: ");  Serial.print(svdeg[PARM2]);
-  Serial.print(", E: ");   Serial.print(rad2deg(E));
-  Serial.print(", S: ");   Serial.print(rad2deg(S));
-  Serial.print(", Q: ");   Serial.println(rad2deg(Q));
+  Serial.print(", E: ");   Serial.print(RAD_TO_DEG * E);
+  Serial.print(", S: ");   Serial.print(RAD_TO_DEG * S);
+  Serial.print(", Q: ");   Serial.println(RAD_TO_DEG * Q);
 }

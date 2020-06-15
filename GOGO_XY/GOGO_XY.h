@@ -90,16 +90,12 @@ void DCM_set(byte motor, int val) {
   analogWrite (dcm[motor][0], abs(val));    // Speed set
 }
 
-double rad2deg(double rad) {
-  return rad*180.0*M_1_PI;
-}
-
-double deg2rad(double deg) {
-  return deg/180.0*M_PI;
-}
-
 int sign(double value) {
  return int((value>0.0)-(value<0.0));
+}
+
+bool InBound(double Test, double Goal, double gap) {
+  return (fabs(Test - Goal) <= gap);
 }
 
 bool outRange(double Test, double Min, double Max) {
