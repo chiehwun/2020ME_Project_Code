@@ -16,6 +16,7 @@ double scara_speed = 1.2;
 // B2: ARM1 = 91,  ARM2 = 13, ARM3 = 14
 const int bktdeg = 45, bkt1 = 180, bkt2 = 40;
 const int BSK_ARM[2][3] = {{114,18,50},{91,13,14}};
+bool bsk_state[2] = {false, false};   // 歸零狀態
 
 // Moving Speed Parameters
 const int HIGHSPD = 255, LOWSPD = 225;
@@ -157,14 +158,16 @@ void loop() {
 
   // Basket
   if(ps2x.BP(PSB_R1)) {
-    Serial.print("BP_PSB_R1... ");
-    basket_mv(PBSKT1);
-    Serial.println("PBSKT1 detached!");
+    Serial.println("BP_PSB_R1... ");
+    basket_state(0);
+//    basket_mv(PBSKT1);
+//    Serial.println("PBSKT1 detached!");
   }
   if(ps2x.BP(PSB_R2)) {
-    Serial.print("BP_PSB_R2... ");
-    basket_mv(PBSKT2);
-    Serial.println("PBSKT2 detached!");
+    Serial.println("BP_PSB_R2... ");
+    basket_state(1);
+//    basket_mv(PBSKT2);
+//    Serial.println("PBSKT2 detached!");
   }
   // GRIPPER
   if(ps2x.BP(PSB_RED))      dd10[PGRP] = 2.0;
@@ -253,6 +256,22 @@ void basket_mv(int port) {
   wait(2000);
   sv[port].write(port == PBSKT1? bkt1 : bkt2);
   wait(500);
+  sv[port].detach();
+}
+
+void basket_state(int code) {
+  int port = (code == 0? PBSKT1:PBSKT2);
+  all_stop();
+  sv[port].attach(port);
+  if(bsk_state[code]) {
+    sv[port].write(port == PBSKT1? bkt1 : bkt2);  // restore
+    bsk_state[code] = false;
+  }
+  else {
+    sv[port].write(port == PBSKT1? bkt1 - bktdeg : bkt2 + bktdeg);  // pour
+    bsk_state[code] = true;
+  }
+  wait(200);
   sv[port].detach();
 }
 
