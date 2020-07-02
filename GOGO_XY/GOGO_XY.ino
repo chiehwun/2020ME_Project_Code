@@ -25,8 +25,8 @@ int lspd = 0, rspd = 0, zspd = 0, mvspd = HIGHSPD;
 // Servo Parameters
 Servo sv[13]; // Servo pin 4-12
 double svdeg[13]        = {-1.0,  -1.0,   0.0,    0.0,    0.0,    bkt1,     bkt2,     62.0,   18.0,   0.0,    5.0,    88.0,   0.0};
-const int svdeg_MIN[13] = {0.0,   0.0,    0.0,    0.0,    0.0,    0.0,      0.0,      0.0,    0.0,    0.0,    5.0,    0.0,    0.0};
-const int svdeg_MAX[13] = {180.0, 180.0,  180.0,  180.0,  180.0,  bktdeg,   bktdeg,   117.0,   150.0,  180.0,  80.0,  180.0,  180.0};
+const int svdeg_MIN[13] = {0,   0,    0,    0,    0,    0,      0,      0,    0,    0,    5,    0,    0};
+const int svdeg_MAX[13] = {180, 180,  180,  180,  180,  bktdeg,   bktdeg,   117,   150,  180,  80,  180,  180};
 double dd10[13]         = {0.0};
 const int pulse_min[13] = {544,   544,    544,    544,    544,    544,      544,      570,    470,    544,    544,    544,    544};
 const int pulse_max[13] = {2400,  2400,   2400,   2400,   2400,   2400,     2400,     1950,   2500,   2400,   2400,   2400,   2400};
@@ -163,11 +163,17 @@ void loop() {
 //    basket_mv(PBSKT1);
 //    Serial.println("PBSKT1 detached!");
   }
+  if(ps2x.BR(PSB_R1)) {
+    sv[PBSKT1].detach();
+  }
   if(ps2x.BP(PSB_R2)) {
     Serial.println("BP_PSB_R2... ");
     basket_state(1);
 //    basket_mv(PBSKT2);
 //    Serial.println("PBSKT2 detached!");
+  }
+  if(ps2x.BR(PSB_R2)) {
+    sv[PBSKT2].detach();
   }
   // GRIPPER
   if(ps2x.BP(PSB_RED))      dd10[PGRP] = 2.0;
@@ -271,8 +277,6 @@ void basket_state(int code) {
     sv[port].write(port == PBSKT1? bkt1 - bktdeg : bkt2 + bktdeg);  // pour
     bsk_state[code] = true;
   }
-  wait(200);
-  sv[port].detach();
 }
 
 void all_stop() {
